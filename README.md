@@ -31,10 +31,26 @@ resto del proyecto.
 
 En el repo: **Settings → Secrets and variables → Actions → New repository secret**
 
-Crea dos secrets:
+**Para un solo número**, crea dos secrets:
 
 - `CALLMEBOT_PHONE` → tu número con código de país, sin el `+` (ej: `34612345678`)
 - `CALLMEBOT_APIKEY` → la apikey que te dio CallMeBot en el paso 1
+
+**Para varios números**, en vez de los dos anteriores crea un solo secret
+llamado `CALLMEBOT_RECIPIENTS` con una lista JSON. Importante: cada número
+tiene que activarse por su cuenta con CallMeBot (paso 1) — no se puede
+reutilizar el apikey de una persona para otro teléfono.
+
+```json
+[
+  { "phone": "34612345678", "apikey": "111111" },
+  { "phone": "584241574102", "apikey": "222222" }
+]
+```
+
+Si `CALLMEBOT_RECIPIENTS` existe, el script la usa y manda el aviso a todos
+los números de la lista; si no existe, usa `CALLMEBOT_PHONE`/`CALLMEBOT_APIKEY`
+como antes.
 
 ## 4. Revisar/editar sites.json
 
