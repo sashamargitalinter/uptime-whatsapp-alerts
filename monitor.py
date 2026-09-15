@@ -7,9 +7,13 @@ Pensado para ejecutarse periódicamente desde GitHub Actions (o cualquier cron
 externo al hosting que vigila). Guarda el último estado conocido de cada sitio
 en state.json para no repetir el mismo aviso en cada ejecución.
 
-Variables de entorno requeridas:
-    CALLMEBOT_PHONE   Tu número de WhatsApp con código de país, sin '+' (ej: 34612345678)
-    CALLMEBOT_APIKEY  La apikey que te da CallMeBot al activarte
+Variables de entorno (una de las dos opciones):
+    CALLMEBOT_RECIPIENTS  JSON con varios destinatarios, ej:
+                          [{"phone": "34612345678", "apikey": "111111"},
+                           {"phone": "584241574102", "apikey": "222222"}]
+    CALLMEBOT_PHONE / CALLMEBOT_APIKEY  Forma simple para un solo número.
+    Cada número debe activarse por su cuenta con CallMeBot antes de poder
+    recibir mensajes (no se puede reutilizar un apikey para otro teléfono).
 
 Archivos:
     sites.json  -> lista de sitios a vigilar (editable, no es secreto)
@@ -83,24 +87,57 @@ def check_site(url: str) -> tuple[bool, str]:
     return False, last_error
 
 
-def send_whatsapp(message: str) -> None:
+def get_recipients() -> list[dict]:
+    """
+    Devuelve la lista de destinatarios como [{"phone": "...", "apikey": "..."}, ...].
+
+    Se puede configurar de dos formas (con CALLMEBOT_RECIPIENTS tiene prioridad):
+    - CALLMEBOT_RECIPIENTS: JSON con la lista completa, para varios números.
+      Ejemplo: [{"phone": "34612345678", "apikey": "111111"}, {"phone": "584241574102", "apikey": "222222"}]
+    - CALLMEBOT_PHONE + CALLMEBOT_APIKEY: un solo número (forma simple original).
+    """
+    raw = os.environ.get("CALLMEBOT_RECIPIENTS")
+    if raw:
+        try:
+            recipients = json.loads(raw)
+            if isinstance(recipients, list) and recipients:
+                return recipients
+            print("Aviso: CALLMEBOT_RECIPIENTS no es una lista JSON válida y no vacía.")
+        except json.JSONDecodeError as exc:
+            print(f"Aviso: CALLMEBOT_RECIPIENTS no es JSON válido ({exc}).")
+
     phone = os.environ.get("CALLMEBOT_PHONE")
     apikey = os.environ.get("CALLMEBOT_APIKEY")
+    if phone and apikey:
+        return [{"phone": phone, "apikey": apikey}]
 
-    if not phone or not apikey:
-        print("Aviso: faltan CALLMEBOT_PHONE / CALLMEBOT_APIKEY, no se envía WhatsApp.")
+    return []
+
+
+def send_whatsapp(message: str) -> None:
+    recipients = get_recipients()
+
+    if not recipients:
+        print("Aviso: no hay destinatarios configurados (CALLMEBOT_RECIPIENTS o CALLMEBOT_PHONE/APIKEY).")
         print(f"Mensaje que se hubiera enviado: {message}")
         return
 
-    url = (
-        "https://api.callmebot.com/whatsapp.php"
-        f"?phone={phone}&text={urllib.parse.quote(message)}&apikey={apikey}"
-    )
-    try:
-        resp = requests.get(url, timeout=15)
-        print(f"CallMeBot respondió: {resp.status_code} {resp.text[:200]}")
-    except requests.exceptions.RequestException as exc:
-        print(f"Error enviando WhatsApp: {exc}")
+    for recipient in recipients:
+        phone = recipient.get("phone")
+        apikey = recipient.get("apikey")
+        if not phone or not apikey:
+            print(f"Aviso: destinatario incompleto, se salta: {recipient}")
+            continue
+
+        url = (
+            "https://api.callmebot.com/whatsapp.php"
+            f"?phone={phone}&text={urllib.parse.quote(message)}&apikey={apikey}"
+        )
+        try:
+            resp = requests.get(url, timeout=15)
+            print(f"CallMeBot ({phone}) respondió: {resp.status_code} {resp.text[:200]}")
+        except requests.exceptions.RequestException as exc:
+            print(f"Error enviando WhatsApp a {phone}: {exc}")
 
 
 def now_utc_str() -> str:
