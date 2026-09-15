@@ -36,6 +36,16 @@ REQUEST_TIMEOUT = 10       # segundos por intento
 MAX_ATTEMPTS = 3           # intentos antes de declarar un sitio "caído"
 RETRY_DELAY = 5            # segundos de espera entre intentos
 
+# Algunos hostings/firewalls bloquean el User-Agent por defecto de requests
+# (python-requests/x.x) por parecer tráfico de bot. Con uno de navegador normal
+# se reduce el riesgo de falsos positivos de "caído".
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+    )
+}
+
 
 def load_json(path: Path, default):
     if not path.exists():
@@ -56,12 +66,16 @@ def check_site(url: str) -> tuple[bool, str]:
     last_error = ""
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
-            resp = requests.get(url, timeout=REQUEST_TIMEOUT, allow_redirects=True)
+            resp = requests.get(
+                url, timeout=REQUEST_TIMEOUT, allow_redirects=True, headers=HEADERS
+            )
             if resp.status_code < 400:
                 return True, f"HTTP {resp.status_code}"
             last_error = f"HTTP {resp.status_code}"
         except requests.exceptions.RequestException as exc:
-            last_error = type(exc).__name__
+            # Detalle completo (no solo el nombre de la excepción) para poder
+            # distinguir un bloqueo del hosting de una caída real.
+            last_error = f"{type(exc).__name__}: {str(exc)[:200]}"
 
         if attempt < MAX_ATTEMPTS:
             time.sleep(RETRY_DELAY)
