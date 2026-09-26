@@ -1,18 +1,18 @@
 {
   "Kawasaki Málaga": {
-    "status": "up",
-    "since": "2026-09-21 08:14 UTC"
+    "status": "down",
+    "since": "2026-09-26 17:56 UTC"
   },
   "Ducati Málaga": {
-    "status": "up",
-    "since": "2026-09-21 08:14 UTC"
+    "status": "down",
+    "since": "2026-09-26 17:57 UTC"
   },
   "Málaga Moto Center": {
-    "status": "up",
-    "since": "2026-09-26 14:46 UTC"
+    "status": "down",
+    "since": "2026-09-26 17:57 UTC"
   },
   "Pont Grup": {
-    "status": "up",
-    "since": "2026-09-21 08:15 UTC"
+    "status": "down",
+    "since": "2026-09-26 17:58 UTC"
   }
 }
